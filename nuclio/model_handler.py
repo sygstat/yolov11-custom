@@ -10,7 +10,7 @@ import onnxruntime as ort
 class ModelHandler:
     def __init__(self, labels):
         self.model = None
-        self.load_network(model="yolo11n.onnx")
+        self.load_network(model="yolo11-nms.onnx")
         self.labels = labels
 
     def load_network(self, model):
@@ -74,25 +74,43 @@ class ModelHandler:
             output = list()
             detections = self.model.run(self.output_details, inp)[0]
 
-            # for det in detections:
-            boxes = detections[:, 1:5]
-            labels = detections[:, 5]
-            scores = detections[:, -1]
+            # YOLOv11-NMS 모델 출력 형식 처리
+            if len(detections.shape) == 2:  # YOLOv7 또는 NMS가 적용된 형식 (N, 7)
+                boxes = detections[:, 1:5]
+                labels = detections[:, 5]
+                scores = detections[:, -1]
+            elif len(detections.shape) == 3:  # YOLOv11 원본 형식 (1, 84, 8400)
+                # 모델을 새로 내보낼 때 NMS 적용으로 이 부분은 실행되지 않을 것이지만,
+                # 예비책으로 남겨둡니다.
+                print("Warning: Using YOLOv11 format without NMS. Please export with NMS.")
+                return None
+            else:
+                raise ValueError(f"Unexpected detection shape: {detections.shape}")
 
-            boxes -= np.array(dwdh * 2)
+            # 좌표 조정
+            dw, dh = dwdh
+            boxes[:, 0] -= dw  # x1
+            boxes[:, 2] -= dw  # x2
+            boxes[:, 1] -= dh  # y1
+            boxes[:, 3] -= dh  # y2
+            
             boxes /= ratio
             boxes = boxes.round().astype(np.int32)
+            
             output.append(boxes)
             output.append(labels)
             output.append(scores)
             return output
 
         except Exception as e:
-            print(e)
+            print(f"Inference error: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
 
     def infer(self, image, threshold):
         image = np.array(image)
-        image = image[:, :, ::-1].copy()
+        image = image[:, :, ::-1].copy()  # RGB to BGR
         h, w, _ = image.shape
         detections = self._infer(image)
 
@@ -111,7 +129,7 @@ class ModelHandler:
 
                     results.append({
                         "confidence": str(score),
-                        "label": self.labels.get(label, "unknown"),
+                        "label": self.labels.get(int(label), "unknown"),
                         "points": [xtl, ytl, xbr, ybr],
                         "type": "rectangle",
                     })
