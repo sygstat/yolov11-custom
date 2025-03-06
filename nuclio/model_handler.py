@@ -74,28 +74,43 @@ class ModelHandler:
             output = list()
             detections = self.model.run(self.output_details, inp)[0]
 
-            # YOLOv11-NMS 모델 출력 형식 처리
-            if len(detections.shape) == 2:  # YOLOv7 또는 NMS가 적용된 형식 (N, 7)
+            # YOLOv11-NMS 출력 형식 처리
+            if len(detections.shape) == 3 and detections.shape[2] == 6:
+                # NMS가 적용된 출력 형식 (1, N, 6)
+                detections = detections[0]  # (1, N, 6) -> (N, 6)
+                
+                # [x1, y1, x2, y2, confidence, class_id] 형식으로 해석
+                boxes = detections[:, :4]
+                scores = detections[:, 4]
+                labels = detections[:, 5]
+                
+                # 좌표 조정 (패딩 제거 및 스케일링)
+                dw, dh = dwdh
+                boxes[:, 0] -= dw  # x1
+                boxes[:, 2] -= dw  # x2
+                boxes[:, 1] -= dh  # y1
+                boxes[:, 3] -= dh  # y2
+                
+                # 원본 이미지 스케일로 변환
+                boxes /= ratio
+                boxes = boxes.round().astype(np.int32)
+                
+            elif len(detections.shape) == 2:  # YOLOv7 형식 (N, 7)
                 boxes = detections[:, 1:5]
                 labels = detections[:, 5]
                 scores = detections[:, -1]
-            elif len(detections.shape) == 3:  # YOLOv11 원본 형식 (1, 84, 8400)
-                # 모델을 새로 내보낼 때 NMS 적용으로 이 부분은 실행되지 않을 것이지만,
-                # 예비책으로 남겨둡니다.
-                print("Warning: Using YOLOv11 format without NMS. Please export with NMS.")
-                return None
+                
+                # 좌표 조정
+                dw, dh = dwdh
+                boxes[:, 0] -= dw  # x1
+                boxes[:, 2] -= dw  # x2
+                boxes[:, 1] -= dh  # y1
+                boxes[:, 3] -= dh  # y2
+                
+                boxes /= ratio
+                boxes = boxes.round().astype(np.int32)
             else:
                 raise ValueError(f"Unexpected detection shape: {detections.shape}")
-
-            # 좌표 조정
-            dw, dh = dwdh
-            boxes[:, 0] -= dw  # x1
-            boxes[:, 2] -= dw  # x2
-            boxes[:, 1] -= dh  # y1
-            boxes[:, 3] -= dh  # y2
-            
-            boxes /= ratio
-            boxes = boxes.round().astype(np.int32)
             
             output.append(boxes)
             output.append(labels)
