@@ -101,13 +101,13 @@ spec:
         - kind: USER
           value: root
         - kind: RUN
-          value: apt update && apt install --no-install-recommends -y python3-pip
+          value: apt update && apt install --no-install-recommends -y wget python3-pip
         - kind: RUN
           value: pip install onnxruntime opencv-python-headless pillow pyyaml
         - kind: WORKDIR
           value: /opt/nuclio
         - kind: COPY
-          value: model/yolo11n-nms.onnx /opt/nuclio/yolo11n-nms.onnx
+          value: wget https://github.com/sygstat/yolov11-custom/raw/refs/heads/main/model/yolo11n-nms.onnx 
         - kind: RUN
           value: ln -s /usr/bin/python3 /usr/bin/python
 
