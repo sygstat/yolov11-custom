@@ -5,7 +5,7 @@ This project implements a Nuclio function using the YOLOv11 object detection mod
 ## Features
 - Object detection using YOLOv11 ONNX model
 - Nuclio function for integration with CVAT
-- CPU and CUDA support
+- CPU support
 
 ## Usage
 1. Deploy Nuclio function
