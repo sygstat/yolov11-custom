@@ -1,4 +1,4 @@
-# YOLOv11 Custom Model
+# YOLOv11 for Nuclio function
 
 This project implements a Nuclio function using the YOLOv11 object detection model in ONNX format.
 
